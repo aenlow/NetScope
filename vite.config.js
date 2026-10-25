@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // Relative asset paths so the build works at a domain root (Cloudflare Pages)
+  // or under a sub-path such as username.github.io/netscope/ (GitHub Pages).
+  base: './',
   esbuild: { jsx: 'automatic', jsxImportSource: 'preact' },
   worker: { format: 'es' },
   build: {
