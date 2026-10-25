@@ -13,8 +13,10 @@ import { Icon } from './icons.jsx';
 import { commandList, MOD } from './commands.js';
 import { getViewport } from './viewportRef.js';
 import { ExportDialog } from './ExportDialog.jsx';
+import { TraceDialog } from './TraceDialog.jsx';
 import { importPlanInteractive, confirmDialog } from './io.js';
 import { uid } from '../core/ids.js';
+import { parseLength } from '../core/trace.js';
 import { run } from '../engine/rfClient.js';
 
 export function Dialogs() {
@@ -28,6 +30,7 @@ export function Dialogs() {
     case 'warnings': return <Warnings {...P} />;
     case 'pdfpage': return <PdfPage {...P} />;
     case 'scale': return <ScaleDialog {...P} />;
+    case 'trace': return <TraceDialog {...P} />;
     case 'blankfloor': return <BlankFloor {...P} />;
     case 'addfloor': return <AddFloor />;
     case 'floor': return <FloorDialog />;
@@ -78,12 +81,15 @@ function ScaleDialog({ pixels, floorIndex }) {
   const units = store.project.settings.units;
   const [len, setLen] = useState('');
   const [unit, setUnit] = useState(units);
-  const v = Number(String(len).replace(',', '.'));
-  const valid = Number.isFinite(v) && v > 0;
+  const others = store.project.floors.map((f, i) => (i !== floorIndex && !f.scale ? i : -1)).filter((i) => i >= 0);
+  const [all, setAll] = useState(true);
+  // Accepts plain numbers in the chosen unit, or 12'6", 12 ft 6 in, 3.8 m.
+  const meters = parseLength(len, unit);
+  const valid = Number.isFinite(meters) && meters > 0;
   const apply = () => {
     if (!valid) return;
-    const meters = unit === 'ft' ? lenIn(v, 'ft') : unit === 'in' ? v * 0.0254 : v;
     A.setScale(floorIndex, pixels, meters);
+    if (all) for (const i of others) A.setScale(i, pixels, meters);
     closeDialog();
     setUi({ tool: 'select' });
     const f = store.project.floors[floorIndex];
@@ -96,11 +102,12 @@ function ScaleDialog({ pixels, floorIndex }) {
         <p class="dim" style={{ marginTop: 0 }}>The line you drew is <span class="mono" style={{ color: 'var(--text)' }}>{pixels.toFixed(1)} px</span> long. How long is it in reality?</p>
         <div class="grid2">
           <label class="field" for="scale-len"><span>Real length</span>
-            <input id="scale-len" class="input mono" inputMode="decimal" value={len} onInput={(e) => setLen(e.currentTarget.value)} onKeyDown={(e) => e.key === 'Enter' && apply()} placeholder={unit === 'ft' ? 'e.g. 30' : 'e.g. 9.1'} />
+            <input id="scale-len" class="input mono" autoComplete="off" value={len} onInput={(e) => setLen(e.currentTarget.value)} onKeyDown={(e) => e.key === 'Enter' && apply()} placeholder={unit === 'ft' ? 'e.g. 30' : 'e.g. 9.1'} />
           </label>
           <SelectField label="Unit" value={unit} onChange={setUnit} options={[{ value: 'ft', label: 'feet' }, { value: 'in', label: 'inches' }, { value: 'm', label: 'meters' }]} />
         </div>
-        {valid ? <p class="hint">That makes 1 px = {fmtLen((unit === 'ft' ? lenIn(v, 'ft') : unit === 'in' ? v * 0.0254 : v) / pixels, units, 3)}.</p> : <p class="hint">Longer reference lines give a more accurate scale.</p>}
+        {valid ? <p class="hint">That makes 1 px = {fmtLen(meters / pixels, units, 3)}.</p> : <p class="hint">Longer reference lines give a more accurate scale. Feet and inches like 12'6" work too.</p>}
+        {others.length ? <Check label={`Use the same scale for the ${others.length} other floor${others.length === 1 ? '' : 's'} without one`} checked={all} onChange={setAll} hint="Right when the floors come from the same drawing or sheet." /> : null}
       </div>
     </Dialog>
   );

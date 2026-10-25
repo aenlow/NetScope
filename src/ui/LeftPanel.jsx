@@ -39,7 +39,7 @@ function SetupCard() {
   const items = [
     { k: 'plan', label: 'Floor plan', done: !!f.imageId, act: () => importPlanInteractive({ newFloor: false }), opt: true },
     { k: 'scale', label: 'Set the scale', done: !!f.scale, act: () => selectTool('scale') },
-    { k: 'walls', label: 'Trace walls', done: f.walls.length > 0, act: () => selectTool('wall') },
+    { k: 'walls', label: 'Trace walls', done: f.walls.length > 0, act: () => (f.imageId ? openDialog('trace', { floorIndex: store.ui.floorIndex }) : selectTool('wall')) },
     { k: 'rooms', label: 'Mark rooms that need Wi-Fi', done: f.zones.some((z) => z.kind === 'room'), act: () => (f.walls.length ? A.detectRoomsOnFloor() : selectTool('rect')), opt: true },
     { k: 'aps', label: 'Place access points', done: f.aps.length > 0, act: () => (f.scale ? openDialog('autoplace') : selectTool('scale')) },
     { k: 'ch', label: 'Plan channels', done: f.aps.length > 1 && store.ui.channelsPlanned, act: () => openDialog('channels'), opt: true },
@@ -115,6 +115,7 @@ function Layers() {
       <div class="sect">
         <div class="sect-h"><h2 class="caps" style={{ margin: 0 }}>Plan tools</h2></div>
         <div style={{ display: 'grid', gap: '6px' }}>
+          <button class="btn block" disabled={!f.imageId} onClick={() => openDialog('trace', { floorIndex: store.ui.floorIndex })}><Icon name="wall" size={16} />Trace walls from plan</button>
           <button class="btn block" disabled={!f.scale} onClick={() => openDialog('autoplace')}><Icon name="auto" size={16} />Auto-place access points</button>
           <button class="btn block" disabled={!f.aps.length} onClick={() => openDialog('channels')}><Icon name="channels" size={16} />Auto-plan channels</button>
           <button class="btn block" disabled={!f.walls.length} onClick={() => A.detectRoomsOnFloor()}><Icon name="rooms" size={16} />Detect rooms from walls</button>

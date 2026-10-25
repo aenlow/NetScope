@@ -59,8 +59,8 @@ export function Welcome() {
         <p class="lead">NetScope predicts coverage, signal quality and channel overlap from your floor plan, walls and access points. Everything runs in your browser; projects stay on this device unless you download them.</p>
 
         <div class="steps" aria-label="Workflow">
-          <div class="step"><div class="n">01</div><h3>Import the plan</h3><p>Image or PDF. Then set the scale from any known length.</p></div>
-          <div class="step"><div class="n">02</div><h3>Trace walls</h3><p>Pick a material per wall. Losses differ per band and are editable estimates.</p></div>
+          <div class="step"><div class="n">01</div><h3>Import the plan</h3><p>Image or PDF. Set the scale from the building's overall size, the PDF's scale note or any known length.</p></div>
+          <div class="step"><div class="n">02</div><h3>Trace walls</h3><p>Found automatically on clean plans, sorted into exterior and interior. Review them, then adjust materials; losses are editable estimates.</p></div>
           <div class="step"><div class="n">03</div><h3>Place access points</h3><p>Choose models from the library, or let auto-place propose a layout for your target.</p></div>
           <div class="step"><div class="n">04</div><h3>Check and export</h3><p>Plan check flags gaps and overlaps. Export a PDF report with a bill of materials.</p></div>
         </div>

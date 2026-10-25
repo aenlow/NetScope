@@ -64,6 +64,7 @@ export function commandList() {
 
     { id: 'plan.autoplace', group: 'Plan', label: 'Auto-place access points…', run: () => openDialog('autoplace'), when: () => !!currentFloor()?.scale },
     { id: 'plan.channels', group: 'Plan', label: 'Auto-plan channels…', run: () => openDialog('channels'), when: () => store.project.floors.some((f) => f.aps.length) },
+    { id: 'plan.trace', group: 'Plan', label: 'Trace walls from plan…', run: () => openDialog('trace', { floorIndex: store.ui.floorIndex }), when: () => !!currentFloor()?.imageId },
     { id: 'plan.rooms', group: 'Plan', label: 'Detect rooms from walls', run: () => A.detectRoomsOnFloor(), when: has },
     { id: 'plan.clients', group: 'Plan', label: 'Simulate clients…', run: () => openDialog('clients'), when: has },
     { id: 'plan.check', group: 'Plan', label: 'Open plan check', run: () => setUi({ leftTab: 'check', leftOpen: true }), when: has },

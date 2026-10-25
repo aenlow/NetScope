@@ -41,9 +41,9 @@ export async function importPlanFrom(file, { newFloor = true } = {}) {
       if (!store.ui.started) setUi({ started: true });
       if (store.project.name === 'Untitled project' && res.name) A.setProjectName(res.name);
       requestAnimationFrame(() => getViewport()?.fit());
-      toast(`Floor plan imported${res.downscaled ? ' (downscaled to 6000 px on the long side)' : ''}. Next, set the scale.`, 'ok');
-      setUi({ tool: 'scale' });
-      getViewport()?.resetTool();
+      if (res.downscaled) toast('Floor plan downscaled to 6000 px on the long side.', 'info');
+      // Offer to trace walls (and set the scale) straight away.
+      openDialog('trace', { floorIndex: index, auto: true, scaleHint: res.scaleHint || null });
     } else {
       A.setFloorImage(store.ui.floorIndex, res);
       requestAnimationFrame(() => getViewport()?.fit());

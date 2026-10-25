@@ -12,6 +12,7 @@ import { buildScene, emitters, probe, resolveDevice, rssiAt } from '../core/prop
 import { radiosOverlap } from '../core/bands.js';
 import { linkEstimate, noiseFloor } from '../core/rf.js';
 import { run } from '../engine/rfClient.js';
+import { cropImage } from '../engine/traceClient.js';
 
 export const devices = () => devicesIndex(store.project.customDevices);
 export const deviceOf = (ap) => resolveDevice(ap.deviceId, devices());
@@ -190,6 +191,74 @@ export function addZone(kind, points, extra = {}) {
 
 export function updateZone(id, patch) {
   commit(() => { const z = currentFloor().zones.find((o) => o.id === id); if (z) Object.assign(z, patch); });
+}
+
+/**
+ * Add traced walls to a floor as one undoable step.
+ * opts: { exterior, interior, window: material ids, replace, split, scale (m/px or null), rooms }
+ * With `split`, each separate drawing in the image becomes its own floor
+ * (cropped image, reading order = bottom floor first).
+ */
+export async function applyTrace(fi, result, opts) {
+  const f0 = store.project.floors[fi];
+  if (!f0) return null;
+  const matFor = (w) => (w.kind === 'window' ? opts.window : w.exterior ? opts.exterior : opts.interior);
+  const split = opts.split && result.plans.length > 1;
+  let parts;
+  if (split) {
+    const url = store.project.images[f0.imageId];
+    const margin = Math.round(0.03 * Math.max(f0.width, f0.height));
+    parts = await Promise.all(result.plans.map(async (pl, i) => {
+      const box = {
+        x: Math.max(0, Math.floor(pl.x - margin)), y: Math.max(0, Math.floor(pl.y - margin)),
+      };
+      box.w = Math.min(f0.width, Math.ceil(pl.x + pl.w + margin)) - box.x;
+      box.h = Math.min(f0.height, Math.ceil(pl.y + pl.h + margin)) - box.y;
+      const img = url ? await cropImage(url, box) : null;
+      return { box, img, walls: result.walls.filter((w) => w.plan === i) };
+    }));
+  } else {
+    parts = [{ box: { x: 0, y: 0 }, img: null, walls: result.walls }];
+  }
+  const created = [];
+  commit((p) => {
+    parts.forEach((part, i) => {
+      let f;
+      if (i === 0) {
+        f = p.floors[fi];
+        if (opts.replace) f.walls = [];
+      } else {
+        f = newFloor(`Level ${p.floors.length + 1}`, { width: part.img.width, height: part.img.height });
+        f.heightM = p.floors[fi].heightM;
+        p.floors.splice(fi + i, 0, f);
+      }
+      if (part.img) {
+        if (i === 0 && f.imageId && !p.floors.some((g) => g !== f && g.imageId === f.imageId)) delete p.images[f.imageId];
+        const id = uid('img');
+        p.images[id] = part.img.dataUrl;
+        f.imageId = id;
+        f.width = part.img.width;
+        f.height = part.img.height;
+      }
+      if (opts.scale) f.scale = opts.scale;
+      for (const w of part.walls) {
+        f.walls.push({ id: uid('wall'), x1: w.x1 - part.box.x, y1: w.y1 - part.box.y, x2: w.x2 - part.box.x, y2: w.y2 - part.box.y, materialId: matFor(w) });
+      }
+      if (opts.rooms && f.scale) {
+        const existing = f.zones.filter((z) => z.kind === 'room');
+        let n = existing.length;
+        for (const r of detectRooms(f.walls, f.width, f.height, f.scale)) {
+          const c = polygonBounds(r.points);
+          const cx = (c.minX + c.maxX) / 2, cy = (c.minY + c.maxY) / 2;
+          if (existing.some((z) => pointInPolygon(cx, cy, z.points))) continue;
+          f.zones.push({ id: uid('zone'), kind: 'room', name: `Room ${++n}`, points: r.points, materialId: null, devices: 0 });
+        }
+      }
+      created.push(f.id);
+    });
+  });
+  setUi({ floorIndex: fi, selection: null });
+  return { floors: created.length, walls: result.walls.length };
 }
 
 export function detectRoomsOnFloor() {

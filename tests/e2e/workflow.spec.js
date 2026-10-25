@@ -14,6 +14,10 @@ test('full planning workflow: import, calibrate, draw, place, analyse, export, r
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /Import a floor plan/ }).click()]);
   await chooser.setFiles(path.join(FIX, 'plan.png'));
   await page.waitForFunction(() => window.__netscope.store.project.floors.length === 1 && !!window.__netscope.store.project.floors[0].imageId);
+  // The trace dialog opens first; this test draws walls by hand instead.
+  const trace = page.getByRole('dialog', { name: 'Trace walls from the plan' });
+  await expect(trace).toBeVisible();
+  await trace.getByRole('button', { name: 'Skip, draw by hand' }).click();
   expect(await state(page, () => window.__netscope.store.ui.tool)).toBe('scale');
   await page.waitForTimeout(300);
 
@@ -173,6 +177,56 @@ test('imports a PDF floor plan', async ({ page }) => {
   const f = await state(page, () => window.__netscope.store.project.floors[0]);
   expect(f.width).toBeGreaterThan(1000);
   expect(f.height / f.width).toBeCloseTo(800 / 1200, 1);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('traces walls and reads the scale from a PDF drawing', async ({ page }) => {
+  const errors = trackConsole(page);
+  await page.goto('/?e2e');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /Import a floor plan/ }).click()]);
+  await chooser.setFiles(path.join(FIX, 'plan-scaled.pdf'));
+  const dlg = page.getByRole('dialog', { name: 'Trace walls from the plan' });
+  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg.locator('.trace-legend')).toBeVisible({ timeout: 30_000 });
+  // The sheet's scale note is offered and selected.
+  await expect(dlg.getByRole('button', { name: 'From PDF' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(dlg.getByText('1/8" = 1\'-0"')).toBeVisible();
+  await dlg.locator('footer .primary').click();
+  await expect(dlg).toBeHidden();
+  const f = await state(page, () => {
+    const f = window.__netscope.store.project.floors[0];
+    const xs = f.walls.flatMap((w) => [w.x1, w.x2]);
+    return { walls: f.walls.length, mats: [...new Set(f.walls.map((w) => w.materialId))].sort(), rooms: f.zones.filter((z) => z.kind === 'room').length, spanFt: ((Math.max(...xs) - Math.min(...xs)) * f.scale) / 0.3048 };
+  });
+  // The fictional plan is 40 ft wide on its wall centre lines.
+  expect(f.spanFt).toBeGreaterThan(39);
+  expect(f.spanFt).toBeLessThan(41);
+  expect(f.walls).toBeGreaterThanOrEqual(10);
+  expect(f.mats).toEqual(['brick', 'drywall', 'glass']);
+  expect(f.rooms).toBe(4);
+  // One undo removes the whole trace.
+  await page.keyboard.press('Control+z');
+  expect(await state(page, () => window.__netscope.store.project.floors[0].walls.length)).toBe(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('splits a sheet with two drawings into two floors and sets the scale from the building size', async ({ page }) => {
+  const errors = trackConsole(page);
+  await page.goto('/?e2e');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /Import a floor plan/ }).click()]);
+  await chooser.setFiles(path.join(FIX, 'two-plans.png'));
+  const dlg = page.getByRole('dialog', { name: 'Trace walls from the plan' });
+  await expect(dlg.locator('.trace-legend')).toBeVisible({ timeout: 30_000 });
+  await expect(dlg.getByText('Split into 2 floors')).toBeVisible();
+  await dlg.getByLabel(/Overall width/).fill('38\'');
+  await expect(dlg.getByText(/Building: 38/)).toBeVisible();
+  await dlg.locator('footer .primary').click();
+  await expect(dlg).toBeHidden();
+  const floors = await state(page, () => window.__netscope.store.project.floors.map((f) => ({ walls: f.walls.length, scale: f.scale, w: f.width })));
+  expect(floors.length).toBe(2);
+  expect(floors[0].walls).toBe(floors[1].walls);
+  expect(floors[0].scale).toBeCloseTo(floors[1].scale, 8);
+  expect(floors[0].w).toBeLessThan(600);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 

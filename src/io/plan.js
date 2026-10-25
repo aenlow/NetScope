@@ -2,6 +2,8 @@
 // decoded as images only (never executed), downscaled when huge and stored as
 // PNG or JPEG data URLs.
 
+import { scaleFromText } from '../core/trace.js';
+
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 export const MAX_SIDE = 6000;
 
@@ -90,7 +92,15 @@ export async function openPdf(file) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
       await page.render({ canvasContext: ctx, canvas: c, viewport: vp }).promise;
-      return { dataUrl: canvasToDataUrl(c), width: c.width, height: c.height, downscaled: false };
+      // A drawing-scale note on the sheet (1/4" = 1'-0", 1:100) gives the
+      // scale directly: the page is rendered at `scale` pixels per point.
+      let scaleHint = null;
+      try {
+        const tc = await page.getTextContent();
+        const found = scaleFromText(tc.items.map((i) => i.str || '').join(' '));
+        if (found) scaleHint = { mPerPx: found.mPerPt / scale, source: 'pdf', note: found.note };
+      } catch { /* text is optional */ }
+      return { dataUrl: canvasToDataUrl(c), width: c.width, height: c.height, downscaled: false, scaleHint };
     },
     destroy() { task.destroy(); },
   };

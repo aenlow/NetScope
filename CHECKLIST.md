@@ -1,6 +1,6 @@
 # NetScope 2.0 – verification checklist
 
-Verified 2026-10-25 with `npm run check`: 48 unit tests passed; Playwright end-to-end tests passed at desktop (1440 × 900) and tablet (1024 × 768, touch) sizes; performance test passed; zero console errors or page errors in every E2E run (asserted by the tests).
+Verified 2026-10-25 with `npm run check`: 56 unit tests passed; Playwright end-to-end tests passed at desktop (1440 × 900) and tablet (1024 × 768, touch) sizes; performance test passed; zero console errors or page errors in every E2E run (asserted by the tests).
 
 ## Brief requirements
 
@@ -30,6 +30,8 @@ Verified 2026-10-25 with `npm run check`: 48 unit tests passed; Playwright end-t
 | Validate uploaded files; never execute content | Pass | Content sniffing, size limits, schema validation, PDF.js eval disabled, CSP; E2E checks an HTML-laden AP name renders as text and that invalid files are rejected. |
 | Multi-floor with slab loss | Pass | Office example has two floors. |
 | Bill of materials in PDF | Pass | With spec provenance and optional prices. |
+| Wall tracing from images and PDFs (added on request) | Pass | Unit tests on synthetic plans; E2E traces a fictional PDF (scale read from its 1/8" note to within 1 %, 4 rooms, one-step undo) and splits a two-plan sheet into two floors. Reviewed by eye on five plans from the web (not included in the repository). |
+| Scale from building size, PDF note or door estimate | Pass | Feet-and-inches input (`45'6"`); the scale dialog can apply one scale to every floor without one. |
 | Example projects with fictional plans | Pass | Office, warehouse, retail; each plan is labelled "Fictional example plan". |
 | Colour-blind-safe heatmap with legend and threshold | Pass | Cividis-like scale; threshold marked on legend and as a contour. |
 | Reduced motion respected | Pass | `prefers-reduced-motion` disables transitions. |
@@ -58,6 +60,7 @@ Wall and area losses; device values marked "Typical / unverified" or `*`; noise 
 - Only US and EU regulatory summaries; 6 GHz standard power (AFC) is not modelled.
 - 195 of 222 devices use typical class values for power and gain.
 - Phones are suited to viewing and light edits; drawing walls is best with a mouse or stylus.
+- Wall tracing finds straight horizontal and vertical walls only. On low-resolution, photographed or heavily decorated plans it finds part of the walls; very thick lettering or long dimension lines drawn as heavy as walls can be picked up. The scale guessed from door widths can be off by 20 % or more and is labelled as a rough guess.
 - Projects autosave per browser. Download the project file to move work between machines.
 
 ## Before you publish

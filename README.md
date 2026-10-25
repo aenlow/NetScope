@@ -10,7 +10,9 @@ NetScope is a browser-based predictive Wi-Fi planning tool. Import a floor plan,
 
 **Plans and floors**
 - Import PNG, JPEG, WebP or PDF floor plans (PDF pages are rendered locally; you choose the page). Files are checked by content, size-limited and never executed.
-- Set the scale by drawing a line of known length, in feet or meters.
+- Trace walls automatically after importing: straight walls are found in the image, sorted into exterior and interior, windows detected in exterior walls, and rooms marked. Pick a material for each group, review the preview, then fix any misses with the Wall tool. One undo removes the whole trace.
+- Set the scale from the overall building size printed on most plans (type `45'6"` or `13.9 m`), from a PDF's scale note such as `1/4" = 1'-0"` or `1:100`, or by drawing a line of known length. A rough guess from door widths is offered when nothing else is available, labelled as such.
+- Sheets with several plans on one image (basement, ground floor, upper floor) can be split into separate floors in one step.
 - Multiple floors with floor-to-floor height, alignment offsets and slab loss between floors. APs on adjacent floors contribute signal.
 - Start from a blank floor of a given size if you have no plan.
 
@@ -52,6 +54,7 @@ NetScope is a browser-based predictive Wi-Fi planning tool. Import a floor plan,
 |---|---|
 | ![SNR view](docs/screenshots/snr.png) | ![Channel overlap view](docs/screenshots/channel-overlap.png) |
 | ![Device library](docs/screenshots/device-library.png) | ![Start screen](docs/screenshots/welcome.png) |
+| ![Tracing walls from a plan image](docs/screenshots/trace-walls.png) | ![Tablet layout](docs/screenshots/tablet.png) |
 
 ## Running it
 
@@ -64,7 +67,14 @@ npm run build      # production build into dist/
 npm run preview    # serve dist/ on http://localhost:4173
 ```
 
-### Deploying to Cloudflare Pages
+### Deploying
+
+NetScope is built from source, so the host must run `npm run build` and serve the `dist` folder. Uploading the source files on their own shows a blank page.
+
+**GitHub Pages**: the included workflow (`.github/workflows/deploy-pages.yml`) builds and publishes on every push to `main`. In the repository, open Settings, Pages, and set Source to "GitHub Actions" once.
+
+**Cloudflare Pages**
+
 
 - Build command: `npm run build`
 - Build output directory: `dist`
@@ -113,12 +123,19 @@ Directional antennas use a smooth main lobe, `−12·(θ / beamwidth)²` dB, flo
 
 The model has no reflections, diffraction or multipath. Material losses come from published measurements where possible and are estimates; see [docs/materials.md](docs/materials.md). Regulatory figures are indicative only; see [docs/regulatory.md](docs/regulatory.md).
 
+## How wall tracing works
+
+Tracing is classical image processing in a Web Worker, with no OCR, machine-learning model or network access, so it adds about 13 kB and works offline. It looks for long straight strokes that are clearly thicker than the plan's line work (or pairs of outlines with a filled or hatched core), joins them at corners and junctions, and keeps gaps as door openings. Gaps with glazing lines in exterior walls become windows. A morphological closing of each wall network gives the building outline; walls on that outline are exterior.
+
+It works best on clean, axis-aligned plans exported from drawing software. Angled and curved walls are not traced, low-resolution or photographed plans give partial results, and text set in very heavy type can occasionally be picked up. The result is always shown for review before it is added. A plan image does not say what a wall is made of, so materials are chosen by the user.
+
 ## Which numbers are estimates
 
 - Wall and area losses: published typical values or estimates, editable per project.
 - Device specifications marked "Typical / unverified" (or marked with `*` on a spec sheet).
 - Noise floor (unless you enter a measured one), MCS thresholds, the 0.65 efficiency factor and therefore every data rate.
 - Cable run lengths (rectilinear path plus allowances) and capacity figures (devices per radio).
+- The scale guessed from door widths (assumes a 0.84 m opening) and the exterior or interior split from tracing.
 - EIRP limits, which are a simplified summary of US and EU rules and not a compliance check.
 
 ## Privacy and security
